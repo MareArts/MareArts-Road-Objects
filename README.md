@@ -8,16 +8,16 @@
 [![Linux](https://img.shields.io/badge/os-Linux-green.svg)](https://www.linux.org/)
 [![macOS](https://img.shields.io/badge/os-macOS-silver.svg)](https://www.apple.com/macos/)
 
-A high-performance Python package for road object detection. Detect persons, 4-wheeled vehicles, and 2-wheeled vehicles in images with advanced YOLO-based neural networks.
+High-performance road object detection with 8-class support: **person**, **bicycle**, **motorcycle**, **car**, **bus**, **truck**, **traffic_light**, **stop_sign**. Built with advanced deep learning for accurate real-time detection.
 
 ## ✨ Features
 
-- 🚗 **Multi-class Detection**: Detects persons, cars/trucks, and motorcycles/bicycles
-- ⚡ **GPU Acceleration**: NVIDIA CUDA, TensorRT, and DirectML support
-- 🛠️ **CLI Interface**: Easy command-line tools (`marearts-robj` or `marearts-road-objects`)
-- 📦 **Multiple Model Sizes**: Small (50MB), medium (100MB), large (200MB)
-- 🌐 **Cross-platform**: Windows, macOS, and Linux support
+- 🎯 **8-Class Detection**: 👤 person, 🚲 bicycle, 🏍️ motorcycle, 🚗 car, 🚌 bus, 🚚 truck, 🚦 traffic_light, 🛑 stop_sign
+- ⚡ **GPU Acceleration**: NVIDIA CUDA and DirectML support
+- 🛠️ **CLI Interface**: Easy command-line tools (`ma-robj`, `marearts-robj`)
+- 🌐 **Cross-platform**: Windows (x64/ARM64), macOS (Intel/Apple Silicon), Linux (x64/ARM64)
 - 🔑 **Unified License**: Same license works for both [MareArts-ANPR](https://github.com/MareArts/MareArts-ANPR) and Road Objects
+- 🚀 **Auto-download**: Models download automatically on first use
 
 ## 🚀 Quick Start
 
@@ -28,39 +28,15 @@ A high-performance Python package for road object detection. Detect persons, 4-w
 pip install marearts-road-objects
 
 # With GPU acceleration (recommended)
-pip install marearts-road-objects[gpu]          # NVIDIA
-pip install marearts-road-objects[directml]     # Windows GPU
+pip install marearts-road-objects[gpu]          # NVIDIA CUDA
+pip install marearts-road-objects[directml]     # Windows DirectML
 pip install marearts-road-objects[all-gpu]      # All GPU support
 ```
 
 ### Get Your License
 
-**Subscribe**: [MareArts ANPR/LPR Solution](https://study.marearts.com/p/anpr-lpr-solution.html)  
-**Note**: One license works for both ANPR and Road Objects packages!
-
-### Configure License
-
-```bash
-# Interactive setup (recommended)
-marearts-robj config
-
-# Or set environment variables
-export MAREARTS_ANPR_USERNAME="your-email@domain.com"
-export MAREARTS_ANPR_SERIAL_KEY="your-serial-key"
-```
-
-### Basic Usage
-
-```bash
-# Detect objects in an image
-marearts-robj detect traffic.jpg
-
-# Use larger model with custom settings
-marearts-robj detect highway.jpg --model large --confidence 0.7 --output result.jpg
-
-# Check GPU acceleration
-marearts-robj gpu-info
-```
+> 🔑 **Subscribe**: [MareArts ANPR/LPR Solution](https://www.marearts.com/products/anpr)
+> 💡 **Important**: One license works for **both** ANPR and Road Objects packages!
 
 ## 🐍 Python API
 
@@ -68,196 +44,148 @@ marearts-robj gpu-info
 
 ```python
 import cv2
-from marearts_road_objects import create_detector, download_model
+from marearts_road_objects import ma_road_object_detector
 
-# License credentials
+# License credentials - Option A: Hardcoded
 username = "your-email@domain.com"
 serial_key = "your-serial-key"
+signature = "your-signature"
 
-# Download and initialize detector
-model_path = download_model("medium", username, serial_key)
-detector = create_detector(model_path, username, serial_key, model_size="medium")
+# License credentials - Option B: From environment variables
+# Step 1: ma-robj config              (Configure credentials)
+# Step 2: source ~/.marearts/.marearts_env  (Load environment variables)
+# import os
+# username = os.getenv("MAREARTS_ANPR_USERNAME")
+# serial_key = os.getenv("MAREARTS_ANPR_SERIAL_KEY")
+# signature = os.getenv("MAREARTS_ANPR_SIGNATURE")
 
-# Detect objects
-image = cv2.imread("traffic_scene.jpg")
-result = detector.detect(image)
+# Initialize detector ONCE (model downloads automatically on first use)
+detector = ma_road_object_detector(
+    model_size="small_fp32",  # Options: small_fp32, medium_fp32, large_fp32
+    user_name=username,
+    serial_key=serial_key,
+    signature=signature,
+    backend="auto",      # Options: "auto", "cuda", "directml", "cpu"
+    conf_thres=0.5,      # Confidence threshold (0.0-1.0)
+    iou_thres=0.5        # NMS IoU threshold (0.0-1.0)
+)
+# backend="auto" (recommended) - Auto-selects best available (CUDA → DirectML → CPU)
 
-# Print results
-print(f"Processing time: {result['processing_time_ms']}ms")
-print(f"Total objects: {result['total_objects']}")
-
-for detection in result['detections']:
-    print(f"{detection['id']}. {detection['class']} ({detection['subclass']})")
-    print(f"   Confidence: {detection['confidence']}")
-    print(f"   Bounding box: {detection['bbox']}")
-```
-
-### Combined with ANPR
-
-```python
-# Same license works for both packages!
-from marearts_road_objects import create_detector, download_model
-from marearts_anpr import ma_anpr_detector, ma_anpr_ocr, marearts_anpr_from_cv2
-
-username = "your-email@domain.com"
-serial_key = "your-serial-key"  # Same key for both!
-
-# Initialize road objects detector
-road_model = download_model("medium", username, serial_key)
-road_detector = create_detector(road_model, username, serial_key, "medium")
-
-# Initialize ANPR detector and OCR
-anpr_detector = ma_anpr_detector("v11_middle", username, serial_key)
-anpr_ocr = ma_anpr_ocr("v11_euplus", username, serial_key)
-
-# Analyze traffic scene
+# Use detector.detector() for inference (can be called repeatedly in loops)
 image = cv2.imread("traffic.jpg")
-vehicles = road_detector.detect(image)                    # Detect vehicles/persons
-plates = marearts_anpr_from_cv2(anpr_detector, anpr_ocr, image)  # Detect and OCR license plates
+result = detector.detector(image)
 
-print(f"Found {vehicles['total_objects']} road objects, {len(plates)} license plates")
-```
-
-## 📊 Output Format
-
-The detection results come in a clean, structured JSON format:
-
-```python
+# Result format (JSON)
+print(result)
+"""
 {
-  "processing_time_ms": 45.2,        # Processing time in milliseconds
-  "total_objects": 3,                # Number of detected objects
-  "detections": [                    # List of detected objects
-    {
-      "id": 1,                       # Sequential object ID
-      "class": "person",             # Main class (person, 4-wheels, 2-wheels)
-      "subclass": "pedestrian",      # Specific subclass (pedestrian, car, truck, bike)
-      "confidence": 0.89,            # Detection confidence (0.0 - 1.0)
-      "bbox": [120, 150, 180, 280]   # Bounding box [x1, y1, x2, y2]
-    },
-    {
-      "id": 2,
-      "class": "4-wheels", 
-      "subclass": "car",
-      "confidence": 0.76,
-      "bbox": [300, 200, 450, 320]
-    }
-  ]
+    'results': [
+        {'ltrb': [88.1, 421.0, 164.9, 476.2], 'ltrb_conf': 85, 'class_id': 3, 'class': 'car'},
+    ],
+    'ltrb_proc_sec': 0.078
 }
+"""
 ```
 
-## 🎯 Model Information
+## 🛠️ CLI Usage
 
-| Model | Speed | Accuracy | Size | Use Case |
-|-------|-------|----------|------|----------|
-| Small | Fastest | Good | 50MB | Real-time, mobile |
-| Medium | Balanced | Better | 100MB | General purpose |
-| Large | Slower | Best | 200MB | High accuracy needs |
+### Configure License
 
-**Detection Classes & Subclasses:**
-- **person** (Pedestrians and people) → **pedestrian**
-- **4-wheels** (Cars, trucks, buses, vans) → **car** (small) or **truck** (large)
-- **2-wheels** (Motorcycles, bicycles, scooters) → **bike**
+```bash
+# Interactive setup (recommended)
+ma-robj config
 
-## 🛠️ CLI Reference
+# Or set environment variables
+export MAREARTS_ANPR_USERNAME="your-email@domain.com"
+export MAREARTS_ANPR_SERIAL_KEY="your-serial-key"
+export MAREARTS_ANPR_SIGNATURE="your-signature"
+```
+
+After configuration, source the environment:
+```bash
+source ~/.marearts/.marearts_env
+```
 
 ### Available Commands
 
 ```bash
-marearts-robj config         # Configure license
-marearts-robj gpu-info       # Check GPU support
-marearts-robj detect IMAGE   # Detect objects
-marearts-robj download       # Download models
-marearts-robj validate       # Validate license
+ma-robj config               # Configure license credentials
+ma-robj validate             # Validate license
+ma-robj detect IMAGE         # Detect objects in image
+ma-robj gpu-info             # Check GPU acceleration support
+ma-robj version              # Show package version
+ma-robj detect traffic.jpg   # Detection Example
 ```
 
-### Detection Examples
+**Command Aliases:** `ma-robj`, `marearts-robj`, `marearts-road-objects` (all work the same)
+
+## 📊 Output Format
+
+ANPR-compatible JSON format for easy integration:
+
+```python
+{
+    'results': [
+        {
+            'ltrb': [88.1, 421.0, 164.9, 476.2],  # Bounding box [left, top, right, bottom]
+            'ltrb_conf': 85,                       # Confidence 0-100 (integer)
+            'class_id': 3,                         # Class ID (0-7)
+            'class': 'car'                         # Class name
+        },
+        {
+            'ltrb': [201.3, 401.7, 265.1, 452.2],
+            'ltrb_conf': 84,
+            'class_id': 3,
+            'class': 'car'
+        }
+    ],
+    'ltrb_proc_sec': 0.178  # Processing time in seconds
+}
+```
+
+## 🎯 Detection Classes
+
+| ID | Class | Description |
+|----|-------|-------------|
+| 0 | person | Pedestrians and people |
+| 1 | bicycle | Bicycles |
+| 2 | motorcycle | Motorcycles and scooters |
+| 3 | car | Passenger cars |
+| 4 | bus | Buses |
+| 5 | truck | Trucks and vans |
+| 6 | traffic_light | Traffic signals |
+| 7 | stop_sign | Stop signs |
+
+## 🔧 Environment Variables
 
 ```bash
-# Basic detection
-marearts-robj detect image.jpg
+# Skip model update checks for faster initialization (production)
+export MAREARTS_ROBJ_SKIP_UPDATE=1
 
-# Advanced options
-marearts-robj detect highway.jpg \
-  --model large \
-  --confidence 0.8 \
-  --output detected_highway.jpg
-
-# Batch processing
-for img in *.jpg; do
-  marearts-robj detect "$img" --output "detected_$img"
-done
+# Enable verbose logging for debugging
+export MAREARTS_VERBOSE=1
 ```
 
-### Model Management
+## 📝 Example Code
 
-```bash
-# Download specific models
-marearts-robj download --model small
-marearts-robj download --model large
-
-# Check what's available
-python -c "from marearts_road_objects import get_available_models; print(get_available_models())"
-```
-
-## ⚡ GPU Acceleration
-
-### Check GPU Support
-
-```bash
-marearts-robj gpu-info
-```
-
-**Expected output with GPU:**
-```
-🚀 CUDAExecutionProvider (GPU)
-⚡ CPUExecutionProvider
-GPU Acceleration: ENABLED
-```
-
-### Performance Comparison
-
-| Configuration | Small Model | Medium Model | Large Model |
-|---------------|-------------|--------------|-------------|
-| CPU (Intel i7) | ~100ms | ~200ms | ~400ms |
-| NVIDIA RTX 3080 | ~15ms | ~25ms | ~45ms |
-| DirectML (Windows) | ~30ms | ~60ms | ~120ms |
-
-### GPU Requirements
-
-**NVIDIA**: CUDA 11.8+ and cuDNN 8.6+  
-**Windows DirectML**: Windows 10 v1903+ with compatible GPU  
-**Memory**: 4GB+ GPU memory recommended for large models
-
-## 💡 Code Examples
-
-Ready-to-run examples are available in the [`examples/`](examples/) directory:
-
-- **`basic_detection.py`** - Simple image detection
-- **`combined_anpr_robj.py`** - Use both ANPR and Road Objects
-- **`webcam_detection.py`** - Real-time webcam processing
-- **`batch_processing.py`** - Process multiple images
-- **`cli_examples.sh`** - Complete CLI usage guide
-
-```bash
-# Run an example
-python examples/basic_detection.py
-```
+Check the `examples/` folder for complete working examples:
+- **basic_detection.py** - Simple detection example
+- **batch_processing.py** - Process multiple images
+- **cli_examples.sh** - CLI command reference
 
 ## 🆘 Support
 
-- **License**: [Get your subscription](https://study.marearts.com/p/anpr-lpr-solution.html)
+- **License**: [Get your subscription](https://www.marearts.com/products/anpr)
 - **Issues**: [GitHub Issues](https://github.com/MareArts/MareArts-Road-Objects/issues)
 - **Email**: hello@marearts.com
 
 ## 🔗 Related Packages
 
 **MareArts AI Ecosystem** (same license for all):
-- **[marearts-anpr](https://pypi.org/project/marearts-anpr/)** - License plate recognition
-- **[marearts-crystal](https://pypi.org/project/marearts-crystal/)** - Licensing framework  
-- **[marearts-xcolor](https://pypi.org/project/marearts-xcolor/)** - Color space conversions
+- **[marearts-anpr](https://github.com/MareArts/MareArts-ANPR)** - License plate recognition (ANPR/ALPR)
+- **[marearts-crystal](https://github.com/MareArts/marearts-crystal)** - Licensing framework
+- **[marearts-xcolor](https://github.com/MareArts/marearts-xcolor)** - Color space conversions
 
 ---
 
 **© 2024 MareArts. All rights reserved.**
-
-*Get started with road object detection in minutes. One license, multiple AI packages, endless possibilities.*

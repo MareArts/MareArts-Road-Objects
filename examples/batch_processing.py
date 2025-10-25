@@ -14,7 +14,7 @@ Features:
 - Performance statistics
 - Error handling for corrupted images
 
-Get your license at: https://study.marearts.com/p/anpr-lpr-solution.html
+Get your license at: https://www.marearts.com/products/anpr
 """
 
 import cv2
@@ -23,35 +23,43 @@ import os
 import time
 from pathlib import Path
 from datetime import datetime
-from marearts_road_objects import create_detector, download_model
+from marearts_road_objects import ma_road_object_detector
 
 class BatchProcessor:
     """Batch image processing for road object detection"""
-    
-    def __init__(self, username, serial_key, model_size="medium"):
+
+    def __init__(self, username, serial_key, signature="", model_size="medium_fp32"):
         """
         Initialize batch processor
-        
+
         Args:
             username: MareArts license username
             serial_key: MareArts license serial key
-            model_size: Model size ('small', 'medium', 'large')
+            signature: MareArts license signature
+            model_size: Model size ('small_fp32', 'medium_fp32', 'large_fp32')
         """
         self.username = username
         self.serial_key = serial_key
-        
+        self.model_size = model_size
+
         print("🔧 Initializing batch processor...")
-        
-        # Initialize detector
+
+        # Initialize detector (model downloads automatically on first use)
         print(f"📦 Loading {model_size} model...")
-        model_path = download_model(model_size, username, serial_key)
-        self.detector = create_detector(model_path, username, serial_key, model_size)
+        self.detector = ma_road_object_detector(
+            model_size=model_size,
+            user_name=username,
+            serial_key=serial_key,
+            signature=signature,
+            conf_thres=0.5,
+            iou_thres=0.5
+        )
         print("✅ Detector ready!")
-        
+
         # Supported image formats
         self.supported_formats = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
-        
-        # Processing statistics
+
+        # Processing statistics (8 classes)
         self.stats = {
             "start_time": None,
             "end_time": None,
@@ -60,7 +68,10 @@ class BatchProcessor:
             "failed_images": 0,
             "total_detections": 0,
             "processing_time": 0,
-            "detection_counts": {"person": 0, "4-wheels": 0, "2-wheels": 0}
+            "detection_counts": {
+                "person": 0, "bicycle": 0, "motorcycle": 0, "car": 0,
+                "bus": 0, "truck": 0, "traffic_light": 0, "stop_sign": 0
+            }
         }
     
     def process_directory(self, input_dir, output_dir, confidence_threshold=0.6, 
@@ -109,7 +120,7 @@ class BatchProcessor:
                 "input_directory": str(input_path),
                 "output_directory": str(output_path),
                 "confidence_threshold": confidence_threshold,
-                "model_size": self.detector.model_size,
+                "model_size": self.model_size,
                 "timestamp": self.stats["start_time"].isoformat()
             },
             "images": {},
@@ -178,22 +189,21 @@ class BatchProcessor:
         
         return sorted(image_files)
     
-    def _process_single_image(self, image_file, output_dir, confidence_threshold, 
+    def _process_single_image(self, image_file, output_dir, confidence_threshold,
                              save_annotation):
         """Process a single image"""
-        start_time = time.time()
-        
         # Load image
         image = cv2.imread(str(image_file))
         if image is None:
             raise ValueError("Could not load image")
-        
+
         # Detect objects
-        detections = self.detector.detect(image, confidence_threshold=confidence_threshold)
-        
-        # Calculate processing time
-        processing_time = time.time() - start_time
-        
+        result = self.detector.detector(image)
+
+        # Extract results
+        detections = result['results']
+        processing_time = result['ltrb_proc_sec']
+
         # Prepare result
         result = {
             "status": "success",
@@ -203,62 +213,70 @@ class BatchProcessor:
             "image_size": {"width": image.shape[1], "height": image.shape[0]},
             "objects_by_type": self._count_objects_by_type(detections)
         }
-        
+
         # Save annotated image if requested
         if save_annotation and detections:
             annotated_image = self._draw_detections(image.copy(), detections)
             annotation_path = output_dir / f"annotated_{image_file.name}"
             cv2.imwrite(str(annotation_path), annotated_image)
             result["annotation_file"] = str(annotation_path)
-        
+
         return result
     
     def _count_objects_by_type(self, detections):
         """Count detections by object type"""
-        counts = {"person": 0, "4-wheels": 0, "2-wheels": 0}
-        
+        counts = {
+            "person": 0, "bicycle": 0, "motorcycle": 0, "car": 0,
+            "bus": 0, "truck": 0, "traffic_light": 0, "stop_sign": 0
+        }
+
         for detection in detections:
             class_name = detection["class"]
             if class_name in counts:
                 counts[class_name] += 1
-        
+
         return counts
     
     def _draw_detections(self, image, detections):
         """Draw detection bounding boxes and labels"""
-        
-        # Color mapping
+
+        # Color mapping (8 classes)
         colors = {
-            "person": (0, 255, 0),      # Green
-            "4-wheels": (255, 0, 0),    # Blue
-            "2-wheels": (0, 0, 255)     # Red
+            "person": (0, 255, 0),          # Green
+            "bicycle": (255, 255, 0),       # Cyan
+            "motorcycle": (255, 0, 255),    # Magenta
+            "car": (255, 0, 0),             # Blue
+            "bus": (0, 165, 255),           # Orange
+            "truck": (0, 100, 255),         # Dark orange
+            "traffic_light": (255, 255, 255), # White
+            "stop_sign": (0, 0, 255)        # Red
         }
-        
+
         for detection in detections:
-            x1, y1, x2, y2 = detection['bbox']
-            confidence = detection['confidence']
+            x1, y1, x2, y2 = map(int, detection['ltrb'])
+            confidence = detection['ltrb_conf']  # 0-100
             class_name = detection['class']
-            
+
             # Get color
             color = colors.get(class_name, (255, 255, 255))
-            
+
             # Draw bounding box
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
-            
+
             # Draw label with background
-            label = f"{class_name}: {confidence:.2f}"
+            label = f"{class_name}: {confidence}%"
             (label_width, label_height), _ = cv2.getTextSize(
                 label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
             )
-            
+
             # Label background
-            cv2.rectangle(image, (x1, y1-label_height-10), 
+            cv2.rectangle(image, (x1, y1-label_height-10),
                          (x1+label_width, y1), color, -1)
-            
+
             # Label text
-            cv2.putText(image, label, (x1, y1-5), 
+            cv2.putText(image, label, (x1, y1-5),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        
+
         return image
     
     def _generate_summary(self):
@@ -360,23 +378,38 @@ class BatchProcessor:
         
         print(f"🎯 Total detections: {self.stats['total_detections']}")
         print(f"👤 Persons: {self.stats['detection_counts']['person']}")
-        print(f"🚗 Vehicles: {self.stats['detection_counts']['4-wheels']}")
-        print(f"🏍️  Bikes: {self.stats['detection_counts']['2-wheels']}")
+        print(f"🚗 Cars: {self.stats['detection_counts']['car']}")
+        print(f"🚌 Buses: {self.stats['detection_counts']['bus']}")
+        print(f"🚚 Trucks: {self.stats['detection_counts']['truck']}")
+        print(f"🚲 Bicycles: {self.stats['detection_counts']['bicycle']}")
+        print(f"🏍️  Motorcycles: {self.stats['detection_counts']['motorcycle']}")
+        print(f"🚦 Traffic Lights: {self.stats['detection_counts']['traffic_light']}")
+        print(f"🛑 Stop Signs: {self.stats['detection_counts']['stop_sign']}")
 
 def main():
     """Main function for batch processing example"""
-    
+
     print("📁 MareArts Road Objects - Batch Processing")
     print("=" * 50)
-    
-    # License credentials (replace with your actual credentials)
+
+    # License credentials - Option 1: Hardcoded (for testing)
+    # Uncomment and replace with your actual credentials
     username = "your-email@domain.com"
     serial_key = "your-serial-key"
-    
+    signature = "your-signature"
+
+    # License credentials - Option 2: From environment variables
+    # ma-robj config
+    # source ~/.marearts/.marearts_env
+    # username = os.getenv("MAREARTS_ANPR_USERNAME")
+    # serial_key = os.getenv("MAREARTS_ANPR_SERIAL_KEY")
+    # signature = os.getenv("MAREARTS_ANPR_SIGNATURE")
+
+
     # Directory paths (modify these for your use case)
     input_directory = "input_images"
     output_directory = "batch_results"
-    
+
     try:
         # Check input directory
         if not os.path.exists(input_directory):
@@ -386,10 +419,10 @@ def main():
             print(f"📁 Created: {input_directory}")
             print("   Please add your images to this directory and run again.")
             return
-        
+
         # Initialize processor
-        processor = BatchProcessor(username, serial_key, model_size="medium")
-        
+        processor = BatchProcessor(username, serial_key, signature, model_size="medium_fp32")
+
         # Process directory
         results = processor.process_directory(
             input_dir=input_directory,
@@ -398,18 +431,18 @@ def main():
             save_annotations=True,
             save_reports=True
         )
-        
+
         if results:
             print(f"\n✅ Batch processing completed successfully!")
             print(f"📂 Results saved to: {output_directory}")
-        
+
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
         print("\n💡 Troubleshooting tips:")
         print("   1. Verify your license credentials")
         print("   2. Ensure input directory contains supported image files")
         print("   3. Check that you have write permissions for output directory")
-        print("   4. Run 'marearts-robj validate' to test your license")
+        print("   4. Run 'ma-robj validate' to test your license")
 
 if __name__ == "__main__":
     main()
