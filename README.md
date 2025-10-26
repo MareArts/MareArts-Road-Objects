@@ -10,6 +10,8 @@
 
 High-performance road object detection with 8-class support: **person**, **bicycle**, **motorcycle**, **car**, **bus**, **truck**, **traffic_light**, **stop_sign**. Built with advanced deep learning for accurate real-time detection.
 
+![Road Object Detection Demo](images/demo_detection.jpg)
+
 ## ✨ Features
 
 - 🎯 **8-Class Detection**: 👤 person, 🚲 bicycle, 🏍️ motorcycle, 🚗 car, 🚌 bus, 🚚 truck, 🚦 traffic_light, 🛑 stop_sign
@@ -61,7 +63,7 @@ signature = "your-signature"
 
 # Initialize detector ONCE (model downloads automatically on first use)
 detector = ma_road_object_detector(
-    model_size="small_fp32",  # Options: small_fp32, medium_fp32, large_fp32
+    model_name="small_fp32",  # Options: small_fp32, medium_fp32, large_fp32
     user_name=username,
     serial_key=serial_key,
     signature=signature,
@@ -86,6 +88,21 @@ print(result)
 }
 """
 ```
+
+## 📊 Model Comparison
+
+Choose the right model for your needs:
+
+| Model Name | Model Size | Detection Speed | Accuracy |
+|------------|------------|-----------------|----------|
+| `small_fp32` | 102 MB | **8ms** (125 FPS) | Standard |
+| `medium_fp32` | 195 MB | 83ms (12 FPS) | Better |
+| `large_fp32` | 314 MB | 96ms (10 FPS) | Best |
+
+**Benchmark System:**
+- GPU: NVIDIA GeForce RTX (CUDA)
+- CPU: Modern x86_64 processor
+- Backend: CUDA (GPU accelerated)
 
 ## 🛠️ CLI Usage
 

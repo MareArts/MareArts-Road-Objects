@@ -36,7 +36,7 @@ def basic_detection_example():
         print("🔧 Initializing detector...")
         print("📦 Model will download automatically on first use (~107MB)")
         detector = ma_road_object_detector(
-            model_size="small_fp32",
+            model_name="small_fp32",
             user_name=username,
             serial_key=serial_key,
             signature=signature,

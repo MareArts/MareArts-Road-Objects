@@ -28,7 +28,7 @@ from marearts_road_objects import ma_road_object_detector
 class BatchProcessor:
     """Batch image processing for road object detection"""
 
-    def __init__(self, username, serial_key, signature="", model_size="medium_fp32"):
+    def __init__(self, username, serial_key, signature="", model_name="medium_fp32"):
         """
         Initialize batch processor
 
@@ -47,7 +47,7 @@ class BatchProcessor:
         # Initialize detector (model downloads automatically on first use)
         print(f"📦 Loading {model_size} model...")
         self.detector = ma_road_object_detector(
-            model_size=model_size,
+            model_name=model_size,
             user_name=username,
             serial_key=serial_key,
             signature=signature,
@@ -421,7 +421,7 @@ def main():
             return
 
         # Initialize processor
-        processor = BatchProcessor(username, serial_key, signature, model_size="medium_fp32")
+        processor = BatchProcessor(username, serial_key, signature, model_name="medium_fp32")
 
         # Process directory
         results = processor.process_directory(
