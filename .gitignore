@@ -78,3 +78,4 @@ Thumbs.db
 logs/
 temp/
 output/
+*.html
