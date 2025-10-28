@@ -1,7 +1,6 @@
 # 🚗 MareArts Road Objects Detection
 
 [![PyPI version](https://badge.fury.io/py/marearts-road-objects.svg)](https://badge.fury.io/py/marearts-road-objects)
-[![Downloads](https://pepy.tech/badge/marearts-road-objects)](https://pepy.tech/project/marearts-road-objects)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Windows](https://img.shields.io/badge/os-Windows-blue.svg)](https://www.microsoft.com/windows)
