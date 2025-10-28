@@ -192,6 +192,25 @@ Check the `examples/` folder for complete working examples:
 - **batch_processing.py** - Process multiple images
 - **cli_examples.sh** - CLI command reference
 
+## 🎯 Try Road Object Detector
+
+**Web Demo:** [https://live.marearts.com/?menu=road_objects](https://live.marearts.com/?menu=road_objects)
+
+**API Test** (1000 free requests/day) - Just change the model name and image path:
+
+```bash
+curl -X POST "https://we303v9ck8.execute-api.eu-west-1.amazonaws.com/Prod/marearts_robj" \
+  -H "Content-Type: image/jpeg" \
+  -H "x-api-key: !23J4K9L2Wory34@G7T1Y8rt-PP83uSSvkV3Z6ioSTR!2" \
+  -H "user-id: marearts_robj@public" \
+  -H "model_name: small_fp32" \
+  --data-binary "@your_image.jpg"
+```
+
+Only change: `model_name` (small_fp32/medium_fp32/large_fp32) and `@your_image.jpg`
+
+**Need unlimited access?** [Get Your License](https://www.marearts.com/products/anpr)
+
 ## 🆘 Support
 
 - **License**: [Get your subscription](https://www.marearts.com/products/anpr)
